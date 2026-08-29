@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cumulative Lung Exposure — an illustrative model</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #171512;
+    --panel: #201d19;
+    --panel-line: #35302a;
+    --tissue-healthy: #d98a92;
+    --tissue-healthy-2: #c97b83;
+    --soot: #15130f;
+    --bone: #eae3d8;
+    --bone-dim: #a89e90;
+    --amber: #d3a24a;
+    --amber-dim: #8a7248;
+    --danger: #b5583f;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(ellipse at 20% -10%, rgba(211,162,74,0.06), transparent 55%),
+      var(--bg);
+    color:var(--bone);
+    font-family:'Inter',sans-serif;
+    min-height:100vh;
+    padding:36px 20px 56px;
+  }
+  .wrap{max-width:1040px;margin:0 auto;}
+
+  .masthead{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    gap:24px;
+    border-bottom:1px solid var(--panel-line);
+    padding-bottom:18px;
+    margin-bottom:28px;
+    flex-wrap:wrap;
+  }
+  .eyebrow{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--amber);
+    margin-bottom:8px;
+  }
+  h1{
+    font-family:'Newsreader',serif;
+    font-weight:500;
+    font-style:italic;
+    font-size:clamp(28px,4vw,40px);
+    margin:0;
+    color:var(--bone);
+    line-height:1.05;
+  }
+  .masthead-note{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    color:var(--bone-dim);
+    text-align:right;
+    max-width:220px;
+    line-height:1.5;
+  }
+
+  .stage{
+    display:grid;
+    grid-template-columns: 1.15fr 0.85fr;
+    gap:28px;
+    align-items:start;
+  }
+  @media (max-width:760px){ .stage{grid-template-columns:1fr;} }
+
+  .plate{
+    background:var(--panel);
+    border:1px solid var(--panel-line);
+    border-radius:4px;
+    padding:26px 26px 22px;
+    position:relative;
+  }
+  .plate-label{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10px;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    color:var(--bone-dim);
+    display:flex;
+    justify-content:space-between;
+    margin-bottom:6px;
+  }
+  .lung-frame{
+    background:#0f0d0b;
+    border:1px solid var(--panel-line);
+    border-radius:3px;
+    padding:10px;
+  }
+
+  .readout{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:1px;
+    background:var(--panel-line);
+    border:1px solid var(--panel-line);
+    margin-top:18px;
+    border-radius:3px;
+    overflow:hidden;
+  }
+  .cell{background:var(--panel);padding:14px 16px;}
+  .cell .k{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10px;
+    text-transform:uppercase;
+    letter-spacing:0.08em;
+    color:var(--bone-dim);
+    margin-bottom:6px;
+  }
+  .cell .v{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:20px;
+    color:var(--bone);
+    font-weight:500;
+  }
+  .cell .v.amber{color:var(--amber);}
+  .cell .v.danger{color:var(--danger);}
+
+  .control{margin-top:20px;}
+  .control-top{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    margin-bottom:10px;
+  }
+  .control-top label{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:0.08em;
+    color:var(--bone-dim);
+  }
+  .control-top .stage-name{
+    font-family:'Newsreader',serif;
+    font-style:italic;
+    font-size:18px;
+    color:var(--amber);
+  }
+  input[type=range]{
+    -webkit-appearance:none;
+    appearance:none;
+    width:100%;
+    height:10px;
+    border-radius:2px;
+    background: linear-gradient(90deg, var(--tissue-healthy) 0%, #6b4a45 35%, #362621 65%, var(--soot) 100%);
+    outline:none;
+    cursor:pointer;
+    border:1px solid #000;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;
+    width:18px;height:24px;
+    border-radius:2px;
+    background:var(--bone);
+    border:2px solid var(--amber);
+    cursor:pointer;
+    margin-top:-1px;
+  }
+  input[type=range]::-moz-range-thumb{
+    width:16px;height:22px;
+    border-radius:2px;
+    background:var(--bone);
+    border:2px solid var(--amber);
+    cursor:pointer;
+  }
+  .scale{
+    display:flex;
+    justify-content:space-between;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10px;
+    color:var(--bone-dim);
+    margin-top:6px;
+  }
+
+  .day-input{
+    margin-top:14px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    color:var(--bone-dim);
+  }
+  .day-input input[type=number]{
+    width:56px;
+    background:#0f0d0b;
+    border:1px solid var(--panel-line);
+    color:var(--bone);
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+    padding:5px 6px;
+    border-radius:2px;
+  }
+
+  .side{display:flex;flex-direction:column;gap:20px;}
+
+  .card{
+    background:var(--panel);
+    border:1px solid var(--panel-line);
+    border-radius:4px;
+    padding:20px 22px;
+  }
+  .card h2{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    color:var(--amber);
+    margin:0 0 12px;
+  }
+  .card p{
+    font-size:13.5px;
+    line-height:1.6;
+    color:#c7bfb2;
+    margin:0 0 10px;
+  }
+  .card p:last-child{margin-bottom:0;}
+
+  .findings-bars{display:flex;flex-direction:column;gap:10px;margin-top:4px;}
+  .fbar-row{display:flex;align-items:center;gap:10px;}
+  .fbar-label{
+    width:64px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    color:var(--bone-dim);
+    flex-shrink:0;
+  }
+  .fbar-track{flex:1;height:10px;background:#0f0d0b;border:1px solid var(--panel-line);border-radius:2px;overflow:hidden;}
+  .fbar-fill{height:100%;background:var(--danger);}
+  .fbar-val{
+    width:46px;
+    text-align:right;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    color:var(--bone);
+    flex-shrink:0;
+  }
+  .n-note{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10.5px;
+    color:var(--bone-dim);
+    margin-top:10px;
+  }
+
+  .flag{
+    border-left:2px solid var(--amber-dim);
+    padding-left:12px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11.5px;
+    line-height:1.6;
+    color:var(--bone-dim);
+  }
+
+  footer{
+    margin-top:34px;
+    padding-top:16px;
+    border-top:1px solid var(--panel-line);
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10.5px;
+    color:var(--bone-dim);
+    line-height:1.7;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="masthead">
+    <div>
+      <div class="eyebrow">Illustrative Pathology Model</div>
+      <h1>What accumulates, breath by breath</h1>
+    </div>
+    <div class="masthead-note">Drag the exposure control below.<br>Tissue darkens on a fitted saturation curve, not a straight line — most visible change happens early.</div>
+  </div>
+
+  <div class="stage">
+    <div class="plate">
+      <div class="plate-label"><span>SPECIMEN — CORONAL PLATE</span><span id="stageTag">STAGE 0 · UNEXPOSED</span></div>
+      <div class="lung-frame">
+        <svg id="lungSvg" viewBox="0 0 420 380" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;display:block;">
+          <defs>
+            <clipPath id="clipL"><path id="lobeLPath" d="M198,58 C158,50 118,66 98,104 C76,146 66,196 70,244 C73,282 90,320 122,338 C144,350 168,344 178,320 C188,296 190,258 192,220 C194,176 196,120 198,58 Z"/></clipPath>
+            <clipPath id="clipR"><path id="lobeRPath" d="M222,58 C262,50 302,66 322,104 C344,146 354,196 350,244 C347,282 330,320 298,338 C276,350 252,344 242,320 C232,296 230,258 228,220 C226,176 224,120 222,58 Z"/></clipPath>
+            <radialGradient id="innerShadeL" cx="35%" cy="30%" r="75%">
+              <stop offset="0%" stop-color="#000" stop-opacity="0"/>
+              <stop offset="100%" stop-color="#000" stop-opacity="0.28"/>
+            </radialGradient>
+            <radialGradient id="innerShadeR" cx="65%" cy="30%" r="75%">
+              <stop offset="0%" stop-color="#000" stop-opacity="0"/>
+              <stop offset="100%" stop-color="#000" stop-opacity="0.28"/>
+            </radialGradient>
+          </defs>
+
+          <!-- trachea + bronchi -->
+          <path d="M210,18 L210,66" stroke="#8f8578" stroke-width="14" stroke-linecap="round"/>
+          <path d="M210,60 C210,72 200,78 188,86 C168,100 150,112 138,132" stroke="#8f8578" stroke-width="9" stroke-linecap="round" fill="none"/>
+          <path d="M210,60 C210,72 220,78 232,86 C252,100 270,112 282,132" stroke="#8f8578" stroke-width="9" stroke-linecap="round" fill="none"/>
+
+          <!-- left lobe -->
+          <g>
+            <path id="fillL" d="M198,58 C158,50 118,66 98,104 C76,146 66,196 70,244 C73,282 90,320 122,338 C144,350 168,344 178,320 C188,296 190,258 192,220 C194,176 196,120 198,58 Z" fill="#d98a92" stroke="#4a3430" stroke-width="1.5"/>
+            <path d="M198,58 C158,50 118,66 98,104 C76,146 66,196 70,244 C73,282 90,320 122,338 C144,350 168,344 178,320 C188,296 190,258 192,220 C194,176 196,120 198,58 Z" fill="url(#innerShadeL)"/>
+            <g id="spotsL" clip-path="url(#clipL)"></g>
+            <path d="M198,58 C158,50 118,66 98,104 C76,146 66,196 70,244 C73,282 90,320 122,338 C144,350 168,344 178,320 C188,296 190,258 192,220 C194,176 196,120 198,58 Z" fill="none" stroke="#251f1c" stroke-width="1" opacity="0.4"/>
+          </g>
+
+          <!-- right lobe -->
+          <g>
+            <path id="fillR" d="M222,58 C262,50 302,66 322,104 C344,146 354,196 350,244 C347,282 330,320 298,338 C276,350 252,344 242,320 C232,296 230,258 228,220 C226,176 224,120 222,58 Z" fill="#d98a92" stroke="#4a3430" stroke-width="1.5"/>
+            <path d="M222,58 C262,50 302,66 322,104 C344,146 354,196 350,244 C347,282 330,320 298,338 C276,350 252,344 242,320 C232,296 230,258 228,220 C226,176 224,120 222,58 Z" fill="url(#innerShadeR)"/>
+            <g id="spotsR" clip-path="url(#clipR)"></g>
+            <path d="M222,58 C262,50 302,66 322,104 C344,146 354,196 350,244 C347,282 330,320 298,338 C276,350 252,344 242,320 C232,296 230,258 228,220 C226,176 224,120 222,58 Z" fill="none" stroke="#251f1c" stroke-width="1" opacity="0.4"/>
+          </g>
+        </svg>
+      </div>
+
+      <div class="control">
+        <div class="control-top">
+          <label for="slider">Exposure — pack-years</label>
+          <span class="stage-name" id="packYearsLabel">0.0</span>
+        </div>
+        <input type="range" id="slider" min="0" max="40" step="0.5" value="0">
+        <div class="scale"><span>0 (never smoked)</span><span>20</span><span>40 pack-years</span></div>
+        <div class="day-input">
+          <span>at</span>
+          <input type="number" id="cigsPerDay" min="1" max="60" value="20">
+          <span>cigarettes / day →</span>
+          <span id="yearsOut" style="color:var(--bone);">0.0 years to reach this</span>
+        </div>
+      </div>
+
+      <div class="readout">
+        <div class="cell"><div class="k">Cigarettes, cumulative</div><div class="v amber" id="statCigs">0</div></div>
+        <div class="cell"><div class="k">Tar deposited (est.)</div><div class="v" id="statTar">0 g</div></div>
+        <div class="cell"><div class="k">Ciliary function</div><div class="v" id="statCilia">100%</div></div>
+        <div class="cell"><div class="k">Tissue visibly affected</div><div class="v danger" id="statTissue">0%</div></div>
+      </div>
+    </div>
+
+    <div class="side">
+      <div class="card">
+        <h2>How this is modeled</h2>
+        <p>The darkening is <em>not</em> linear. Each cigarette deposits a small, largely permanent residue of tar and particulate that macrophages carry to lymph tissue but can't fully clear — so it accumulates. Alveolar macrophages laden with this material are literally black under a microscope, which is why smokers' lungs read as progressively sootier rather than uniformly grey.</p>
+        <p>The curve here uses a saturating exponential (fast visible change in the first ~10 pack-years, flattening after), consistent with how tar staining is described in gross pathology and autopsy literature — this is an illustrative approximation, not a diagnostic tool.</p>
+      </div>
+
+      <div class="card">
+        <h2>What your dataset actually showed</h2>
+        <p>478 lung records, <code>Organ_Condition</code> as Healthy/Damaged:</p>
+        <div class="findings-bars" id="findingsBars"></div>
+        <p class="n-note">Damage rate is <em>highest</em> among never-smokers and doesn't scale with pack-years (r ≈ −0.01). That's not a real physiological pattern — it points to this file being randomly generated for practice rather than sourced from real patients. I used it for the honest readout above, not for the animation model.</p>
+      </div>
+
+      <div class="card">
+        <h2>Files not used</h2>
+        <p class="flag"><code>lung-cancer.data</code> / <code>.names</code> — the classic UCI set. 32 samples, 56 attributes, all anonymized integers 0–3 with no documented meaning. Not usable for a labeled visual like this without guessing at what the columns mean.</p>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    Educational visualization built from general smoking-pathology literature (tar/particulate accumulation in alveolar macrophages) and Joocie's uploaded health_dataset.csv (478 lung records). Not a diagnostic or clinical risk tool.
+  </footer>
+</div>
+
+<script>
+const slider = document.getElementById('slider');
+const cigsPerDayInput = document.getElementById('cigsPerDay');
+const packYearsLabel = document.getElementById('packYearsLabel');
+const yearsOut = document.getElementById('yearsOut');
+const stageTag = document.getElementById('stageTag');
+const statCigs = document.getElementById('statCigs');
+const statTar = document.getElementById('statTar');
+const statCilia = document.getElementById('statCilia');
+const statTissue = document.getElementById('statTissue');
+const fillL = document.getElementById('fillL');
+const fillR = document.getElementById('fillR');
+const spotsL = document.getElementById('spotsL');
+const spotsR = document.getElementById('spotsR');
+
+const HEALTHY = [217,138,146]; // #d98a92
+const SOOT    = [21,19,15];    // #15130f
+
+function lerp(a,b,t){ return a + (b-a)*t; }
+function mix(t){
+  return `rgb(${Math.round(lerp(HEALTHY[0],SOOT[0],t))},${Math.round(lerp(HEALTHY[1],SOOT[1],t))},${Math.round(lerp(HEALTHY[2],SOOT[2],t))})`;
+}
+
+// seeded pseudo-random so spot layout is stable across renders
+function seededRandom(seed){
+  let s = seed;
+  return function(){
+    s = (s * 9301 + 49297) % 233280;
+    return s / 233280;
+  };
+}
+
+function buildSpots(container, bounds, count, seed){
+  const rnd = seededRandom(seed);
+  const spots = [];
+  for(let i=0;i<count;i++){
+    const x = bounds.x + rnd()*bounds.w;
+    const y = bounds.y + rnd()*bounds.h;
+    const r = 4 + rnd()*10;
+    const threshold = rnd()*38 + rnd()*2; // pack-years at which it starts appearing
+    const el = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    el.setAttribute('cx', x);
+    el.setAttribute('cy', y);
+    el.setAttribute('r', r);
+    el.setAttribute('fill', '#0d0b09');
+    el.setAttribute('opacity', 0);
+    container.appendChild(el);
+    spots.push({el, threshold, maxR:r});
+  }
+  return spots;
+}
+
+const spotsLData = buildSpots(spotsL, {x:70,y:70,w:120,h:260}, 34, 7);
+const spotsRData = buildSpots(spotsR, {x:230,y:70,w:120,h:260}, 34, 91);
+
+function stageName(py){
+  if(py === 0) return 'STAGE 0 · UNEXPOSED';
+  if(py < 5) return 'STAGE 1 · EARLY STAINING';
+  if(py < 15) return 'STAGE 2 · PROGRESSIVE DEPOSITION';
+  if(py < 28) return 'STAGE 3 · DENSE ANTHRACOSIS';
+  return 'STAGE 4 · HEAVILY SATURATED';
+}
+
+function update(){
+  const packYears = parseFloat(slider.value);
+  const cigsPerDay = Math.max(1, parseInt(cigsPerDayInput.value || 20, 10));
+  const totalCigs = Math.round(packYears * 20 * 365); // 1 pack-year = 20 cigs/day for a year
+  const yearsAtRate = (packYears * 20) / cigsPerDay;
+
+  // saturating exponential: fast early change, flattening after ~15 pack-years
+  const t = 1 - Math.exp(-packYears / 11);
+
+  packYearsLabel.textContent = packYears.toFixed(1);
+  yearsOut.textContent = yearsAtRate.toFixed(1) + ' years to reach this';
+  stageTag.textContent = stageName(packYears);
+
+  const col = mix(t);
+  fillL.setAttribute('fill', col);
+  fillR.setAttribute('fill', col);
+
+  [...spotsLData, ...spotsRData].forEach(s=>{
+    if(packYears >= s.threshold){
+      const local = Math.min(1, (packYears - s.threshold) / 6);
+      s.el.setAttribute('opacity', (0.55 + local*0.4).toFixed(2));
+      s.el.setAttribute('r', (s.maxR * (0.5 + local*0.5)).toFixed(1));
+    } else {
+      s.el.setAttribute('opacity', 0);
+    }
+  });
+
+  statCigs.textContent = totalCigs.toLocaleString();
+  statTar.textContent = ((totalCigs * 12) / 1000).toFixed(0) + ' g'; // ~12mg tar/cigarette, commonly cited average
+  statCilia.textContent = Math.round(100 * (1 - 0.8*t)) + '%';
+  statTissue.textContent = Math.round(t*100) + '%';
+}
+
+slider.addEventListener('input', update);
+cigsPerDayInput.addEventListener('input', update);
+update();
+
+// dataset readout — from health_dataset.csv, Organ == 'Lungs' (n=478)
+const findings = [
+  {label:'Never',  pct:39.6, n:207},
+  {label:'Former', pct:31.1, n:132},
+  {label:'Current',pct:32.4, n:139},
+];
+const bars = document.getElementById('findingsBars');
+findings.forEach(f=>{
+  const row = document.createElement('div');
+  row.className = 'fbar-row';
+  row.innerHTML = `
+    <div class="fbar-label">${f.label}</div>
+    <div class="fbar-track"><div class="fbar-fill" style="width:${f.pct}%;"></div></div>
+    <div class="fbar-val">${f.pct.toFixed(1)}%</div>
+  `;
+  bars.appendChild(row);
+});
+</script>
+</body>
+</html>
